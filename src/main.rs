@@ -36,6 +36,8 @@ mod input;
 mod moves;
 mod window;
 
+const AI_ON: bool = true;
+
 fn main() {
     let board: Arc<Mutex<Board>> = Arc::new(Mutex::new(Board::new()));
     let ready_flag: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -71,7 +73,7 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
     loop {
         if let Some(mv) = input.lock().unwrap().take_pending() {
             with_board(board, |b| {
-                make_move(mv, b);
+                make_move(mv, b, AI_ON);
             });
         }
 
@@ -92,17 +94,15 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
     }
 }
 
-pub fn make_move(mv: Move, b: &mut Board) {
+pub fn make_move(mv: Move, b: &mut Board, ai_opponent: bool) {
     if !b.check_move(mv) {
         return;
     }
 
     let target = b.get_piece(mv.to.0, mv.to.1).is_some();
     b.raw_move(mv);
-
     let mut castle = false;
     let piece = b.get_piece(mv.to.0, mv.to.1).copied();
-
     if (mv.to.1 - mv.from.1).abs() > 1 && piece.is_some_and(|p| p.kind == PieceKind::King) {
         castle = true;
         let rank = mv.to.0;
@@ -111,7 +111,6 @@ pub fn make_move(mv: Move, b: &mut Board) {
         } else {
             ((rank, 0), (rank, 3))
         };
-
         b.raw_move(Move::new(rook_from, rook_to));
     } else if target || piece.is_some_and(|p| p.kind == Pawn) {
         b.halfmove_clock = -1;
@@ -124,6 +123,7 @@ pub fn make_move(mv: Move, b: &mut Board) {
             return;
         }
     }
+
     b.loaded_sound = if castle {
         LoadedSound::Castle
     } else if target {
@@ -153,8 +153,15 @@ pub fn make_move(mv: Move, b: &mut Board) {
         b.squares[(mv.to.0 - dir) as usize][mv.to.1 as usize] = None;
         b.loaded_sound = LoadedSound::Capture;
     }
-
     post_move(b);
+
+    if !(ai_opponent && b.to_move == Colour::Black) {
+        return;
+    }
+
+    if let Some(ai_move) = crate::ai::find_best(b) {
+        make_move(ai_move, b, false);
+    }
 }
 
 fn post_move(b: &mut Board) {
