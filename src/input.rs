@@ -18,7 +18,7 @@ pub struct InputState {
     pub legal_moves: Vec<Move>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum LoadedSound {
     None,
     Normal,

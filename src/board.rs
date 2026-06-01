@@ -367,6 +367,21 @@ impl Board {
         self.to_move.hash(&mut hasher);
         return hasher.finish();
     }
+
+    pub fn hashless_clone(&self) -> Self {
+        Board {
+            squares: self.squares,
+            to_move: self.to_move,
+            white_king: self.white_king,
+            black_king: self.black_king,
+            halfmove_clock: self.halfmove_clock,
+            last_double: self.last_double,
+            gamestate: self.gamestate,
+            promotion_state: self.promotion_state,
+            loaded_sound: self.loaded_sound,
+            position_history: HashMap::new(), // skip the clone entirely
+        }
+    }
 }
 
 impl Not for Colour {
