@@ -16,7 +16,8 @@ use crate::{
     },
     input::{InputState, LoadedSound},
     moves::{
-        Colour, Move, Piece, PieceKind::{self, Pawn}
+        Colour, Move, Piece,
+        PieceKind::{self, Pawn},
     },
 };
 use board::Board;
@@ -29,6 +30,7 @@ use std::{
     time::Duration,
 };
 
+mod ai;
 mod board;
 mod input;
 mod moves;
@@ -136,13 +138,18 @@ pub fn make_move(mv: Move, b: &mut Board) {
         None
     };
 
-    let Some(p) = piece else { return; };
+    let Some(p) = piece else {
+        return;
+    };
     let dir = match p.colour {
         Colour::White => -1,
         Colour::Black => 1,
     };
-    
-    if piece.is_some_and(|p| p.kind == Pawn) && b.get_piece(mv.to.0 - dir, mv.to.1).is_some_and(|p| p.kind == Pawn) {
+
+    if piece.is_some_and(|p| p.kind == Pawn)
+        && b.get_piece(mv.to.0 - dir, mv.to.1)
+            .is_some_and(|p| p.kind == Pawn)
+    {
         b.squares[(mv.to.0 - dir) as usize][mv.to.1 as usize] = None;
         b.loaded_sound = LoadedSound::Capture;
     }
