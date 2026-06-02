@@ -9,6 +9,7 @@
 #![allow(clippy::enum_glob_use)]
 
 use crate::{
+    ai::find_best,
     board::{
         GameState,
         PromotionState::{self, Complete},
@@ -16,7 +17,8 @@ use crate::{
     },
     input::{InputState, LoadedSound},
     moves::{
-        Colour, Move, Piece,
+        Colour::{self, Black},
+        Move, Piece,
         PieceKind::{self, Pawn},
     },
 };
@@ -159,7 +161,7 @@ pub fn make_move(mv: Move, b: &mut Board, ai_opponent: bool) {
         return;
     }
 
-    if let Some(ai_move) = crate::ai::find_best(b) {
+    if let Some(ai_move) = find_best(b, Black) {
         make_move(ai_move, b, false);
     }
 }

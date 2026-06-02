@@ -73,7 +73,7 @@ impl Iterator for SquareIter<'_> {
 }
 
 pub fn reset(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
-    *board.lock().unwrap() = Board::new();
+    *board.lock().unwrap() = Board::test_board(); // GREPME
     board.lock().unwrap().loaded_sound = LoadedSound::Start;
     *input.lock().unwrap() = InputState::new();
 }
@@ -379,7 +379,7 @@ impl Board {
             gamestate: self.gamestate,
             promotion_state: self.promotion_state,
             loaded_sound: self.loaded_sound,
-            position_history: HashMap::new(), // skip the clone entirely
+            position_history: HashMap::new(),
         }
     }
 }
