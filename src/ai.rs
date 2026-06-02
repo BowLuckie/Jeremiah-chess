@@ -54,7 +54,7 @@ pub fn minimax(
                 None
             }
         })
-        .flat_map(|(row, col)| board.get_moves(row, col))
+        .flat_map(|(row, col)| board.get_moves(row, col, true))
         .collect();
 
     if moves.is_empty() {
@@ -109,7 +109,7 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
                 None
             }
         })
-        .flat_map(|(row, col)| board.get_moves(row, col))
+        .flat_map(|(row, col)| board.get_moves(row, col, true))
         .collect();
 
     if moves.is_empty() {

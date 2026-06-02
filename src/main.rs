@@ -38,7 +38,7 @@ mod input;
 mod moves;
 mod window;
 
-const AI_ON: bool = true;
+pub const AI_ON: bool = true;
 
 fn main() {
     let board: Arc<Mutex<Board>> = Arc::new(Mutex::new(Board::new()));
@@ -76,7 +76,7 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
     loop {
         if let Some(mv) = input.lock().unwrap().take_pending() {
             with_board(board, |b| {
-                make_move(mv, b, false); // handle AI separately
+                make_move(mv, b, false, false);
             });
         }
 
@@ -93,7 +93,6 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
             }
         });
 
-        // AI check is outside with_board
         let should_think = with_board(board, |b| {
             AI_ON && b.to_move == Colour::Black && matches!(b.gamestate, GameState::Playing)
         });
@@ -106,7 +105,7 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
             thread::spawn(move || {
                 if let Some(ai_move) = find_best(&board_snapshot, Black) {
                     with_board(&board_clone, |b| {
-                        make_move(ai_move, b, false);
+                        make_move(ai_move, b, false, true);
                         if let PromotionState::Promoting(mv, colour) = b.promotion_state {
                             let (row, col) = mv.to;
                             b.squares[row as usize][col as usize] = Some(Piece {
@@ -127,8 +126,15 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
     }
 }
 
-pub fn make_move(mv: Move, b: &mut Board, ai_opponent: bool) {
+pub fn make_move(mv: Move, b: &mut Board, ai_opponent: bool, ai_source: bool) {
     if !b.check_move(mv) {
+        return;
+    }
+
+    if b.get_piece(mv.from.0, mv.from.1)
+        .is_some_and(|p| p.colour == Black)
+        && !ai_source
+    {
         return;
     }
 
@@ -197,7 +203,7 @@ pub fn make_move(mv: Move, b: &mut Board, ai_opponent: bool) {
     }
 
     if let Some(ai_move) = find_best(b, Black) {
-        make_move(ai_move, b, false);
+        make_move(ai_move, b, false, true);
         if let PromotionState::Promoting(mv, colour) = b.promotion_state {
             let (row, col) = mv.to;
             b.squares[row as usize][col as usize] = Some(Piece {

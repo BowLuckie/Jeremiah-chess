@@ -307,7 +307,7 @@ impl Board {
                 if piece.colour != colour {
                     return None;
                 }
-                Some(self.get_moves(row, col).len())
+                Some(self.get_moves(row, col, true).len())
             })
             .sum();
 

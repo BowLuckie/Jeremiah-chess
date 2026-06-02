@@ -1,6 +1,9 @@
-use crate::board::{
-    Board,
-    PromotionState::{self, Promoting},
+use crate::{
+    board::{
+        Board,
+        PromotionState::{self, Promoting},
+    },
+    moves::Colour::Black,
 };
 
 pub type Coordinate = (i8, i8);
@@ -93,7 +96,10 @@ impl Move {
 }
 
 impl Board {
-    pub fn get_moves(&self, row: i8, col: i8) -> Vec<Move> {
+    pub fn get_moves(&self, row: i8, col: i8, ai_source: bool) -> Vec<Move> {
+        if !ai_source && self.get_piece(row, col).is_some_and(|p| p.colour == Black) {
+            return vec![];
+        }
         if let Promoting(_, _) = self.promotion_state {
             return vec![];
         }

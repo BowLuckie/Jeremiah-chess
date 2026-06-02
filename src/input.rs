@@ -68,10 +68,10 @@ pub fn handle_click(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>, r
         match selected_old {
             Some(old) if old == new => (vec![], None),
             Some(old) => {
-                let moves = board_guard.get_moves(row, col);
+                let moves = board_guard.get_moves(row, col, false);
                 (moves, Some(Move::new(old, new)))
             }
-            None => (board_guard.get_moves(row, col), None),
+            None => (board_guard.get_moves(row, col, false), None),
         }
     };
 
