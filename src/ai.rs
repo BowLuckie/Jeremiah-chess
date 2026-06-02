@@ -6,6 +6,72 @@ use crate::{
     },
 };
 
+// ---- PST ----
+
+pub const KNIGHT_PST: [[i32; 8]; 8] = [
+    [-20, -15, -10, -10, -10, -10, -15, -20],
+    [-15, 0, 5, 5, 5, 5, 0, -15],
+    [-10, 5, 15, 20, 20, 15, 5, -10],
+    [-10, 5, 20, 30, 30, 20, 5, -10],
+    [-10, 5, 20, 30, 30, 20, 5, -10],
+    [-10, 5, 15, 20, 20, 15, 5, -10],
+    [-15, 0, 5, 5, 5, 5, 0, -15],
+    [-20, -15, -10, -10, -10, -10, -15, -20],
+];
+
+pub const BISHOP_PST: [[i32; 8]; 8] = [
+    [-10, -10, -10, -10, -10, -10, -10, -10],
+    [-5, 0, 0, 5, 5, 0, 0, -5],
+    [-5, 5, 10, 15, 15, 10, 5, -5],
+    [-5, 5, 15, 20, 20, 15, 5, -5],
+    [-5, 5, 15, 20, 20, 15, 5, -5],
+    [-5, 5, 10, 15, 15, 10, 5, -5],
+    [-5, 0, 0, 5, 5, 0, 0, -5],
+    [-10, -10, -10, -10, -10, -10, -10, -10],
+];
+
+pub const ROOK_PST: [[i32; 8]; 8] = [
+    [0, 0, 5, 10, 10, 5, 0, 0],
+    [0, 0, 5, 10, 10, 5, 0, 0],
+    [0, 0, 5, 10, 10, 5, 0, 0],
+    [5, 5, 10, 15, 15, 10, 5, 5],
+    [5, 5, 10, 15, 15, 10, 5, 5],
+    [0, 0, 5, 10, 10, 5, 0, 0],
+    [0, 0, 5, 10, 10, 5, 0, 0],
+    [0, 0, 5, 10, 10, 5, 0, 0],
+];
+
+pub const QUEEN_PST: [[i32; 8]; 8] = [
+    [-5, -5, -5, -5, -5, -5, -5, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 2, 3, 3, 2, 0, -5],
+    [-5, 0, 3, 5, 5, 3, 0, -5],
+    [-5, 0, 3, 5, 5, 3, 0, -5],
+    [-5, 0, 2, 3, 3, 2, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, -5, -5, -5, -5, -5, -5, -5],
+];
+
+fn pst_bonus(piece: Piece, row: i8, col: i8) -> i32 {
+    let row = match piece.colour {
+        White => row,
+        Black => 7 - row, // mirror for black
+    };
+
+    let (row, col) = (row as usize, col as usize);
+
+    (match piece.kind {
+        PieceKind::Knight => KNIGHT_PST[row][col],
+        PieceKind::Bishop => BISHOP_PST[row][col],
+        PieceKind::Rook => ROOK_PST[row][col],
+        PieceKind::Queen => QUEEN_PST[row][col],
+        _ => 0,
+    }) * (match piece.colour {
+        White => 1,
+        Black => -1,
+    })
+}
+
 pub type Score = i32;
 
 fn p_score(piece: Piece) -> Score {
@@ -41,20 +107,11 @@ fn mobility_bonus(board: &Board, row: i8, col: i8, piece: Piece) -> Score {
 }
 
 pub fn evaluate(board: &Board) -> Score {
-    //materialScore = kingWt  * (wK-bK)
-    //               + queenWt * (wQ-bQ)
-    //               + rookWt  * (wR-bR)
-    //               + knightWt* (wN-bN)
-    //               + bishopWt* (wB-bB)
-    //               + pawnWt  * (wP-bP)
-    //
-    // mobilityScore = mobilityWt * (wMobility-bMobility)
-    // Eval  = (materialScore + mobilityScore) * who2Move
     let score = board
         .as_iter()
         .filter_map(|(p, row, col)| p.map(|p| (p, row, col)))
         .fold(0, |acc, (p, row, col)| {
-            acc + p_score(p) + mobility_bonus(board, row, col, p)
+            acc + p_score(p) + mobility_bonus(board, row, col, p) + pst_bonus(p, row, col)
         });
 
     return score;
