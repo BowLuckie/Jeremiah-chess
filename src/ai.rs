@@ -24,14 +24,20 @@ fn p_score(piece: Piece) -> Score {
 
 fn mobility_bonus(board: &Board, row: i8, col: i8, piece: Piece) -> Score {
     let moves = board.get_moves_unchecked(row, col, true).len() as i32;
-    moves
+
+    let bonus = moves
         * match piece.kind {
             PieceKind::Knight => 4,
             PieceKind::Bishop => 3,
             PieceKind::Rook => 2,
             PieceKind::Queen => 1,
             _ => 0,
-        }
+        };
+
+    match piece.colour {
+        White => bonus,
+        Black => -bonus,
+    }
 }
 
 pub fn evaluate(board: &Board) -> Score {
@@ -145,7 +151,7 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
         let mut copy = board.hashless_clone();
         copy.raw_move(mv);
         copy.switch_turn();
-        let score = minimax(&copy, 3, Score::MIN + 1, Score::MAX - 1, !maximizing);
+        let score = minimax(&copy, 3, Score::MIN + 1, Score::MAX - 1, !maximizing); // GREPME2
         if maximizing { score } else { -score }
     })
 }
