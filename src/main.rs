@@ -72,6 +72,8 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
     println!();
     with_board(board, |b| println!("{b}"));
 
+    // let ai_thinking: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+
     loop {
         if let Some(mv) = input.lock().unwrap().take_pending() {
             with_board(board, |b| {
@@ -89,9 +91,26 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
                 });
                 b.promotion_state = PromotionState::Not;
                 post_move(b);
+                // trigger AI after white promotes
+                if AI_ON
+                    && b.to_move == Colour::Black
+                    && matches!(b.gamestate, GameState::Playing)
+                    && let Some(ai_move) = find_best(b, Black)
+                {
+                    make_move(ai_move, b, false);
+                    if let PromotionState::Promoting(mv, colour) = b.promotion_state {
+                        let (row, col) = mv.to;
+                        b.squares[row as usize][col as usize] = Some(Piece {
+                            kind: PieceKind::Queen,
+                            colour,
+                            has_moved: true,
+                        });
+                        b.promotion_state = PromotionState::Not;
+                        post_move(b);
+                    }
+                }
             }
         });
-
         thread::sleep(Duration::from_millis(16));
     }
 }
@@ -161,8 +180,22 @@ pub fn make_move(mv: Move, b: &mut Board, ai_opponent: bool) {
         return;
     }
 
+    if !(ai_opponent && b.to_move == Colour::Black && matches!(b.gamestate, GameState::Playing)) {
+        return;
+    }
+
     if let Some(ai_move) = find_best(b, Black) {
         make_move(ai_move, b, false);
+        if let PromotionState::Promoting(mv, colour) = b.promotion_state {
+            let (row, col) = mv.to;
+            b.squares[row as usize][col as usize] = Some(Piece {
+                kind: PieceKind::Queen,
+                colour,
+                has_moved: true,
+            });
+            b.promotion_state = PromotionState::Not;
+            post_move(b);
+        }
     }
 }
 

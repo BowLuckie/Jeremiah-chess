@@ -1,6 +1,5 @@
 use crate::{
     board::Board,
-    make_move,
     moves::{
         Colour::{self, Black, White},
         Move, Piece, PieceKind,
@@ -74,7 +73,8 @@ pub fn minimax(
         let mut best = Score::MIN + 1;
         for mv in moves {
             let mut copy = board.clone();
-            make_move(mv, &mut copy, false);
+            copy.raw_move(mv);
+            copy.switch_turn();
             best = best.max(minimax(&copy, depth - 1, alpha, beta, false));
             alpha = alpha.max(best);
             if beta <= alpha {
@@ -86,7 +86,8 @@ pub fn minimax(
         let mut best = Score::MAX - 1;
         for mv in moves {
             let mut copy = board.clone();
-            make_move(mv, &mut copy, false);
+            copy.raw_move(mv);
+            copy.switch_turn();
             best = best.min(minimax(&copy, depth - 1, alpha, beta, true));
             beta = beta.min(best);
             if beta <= alpha {
@@ -101,7 +102,13 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
     let maximizing = colour == Colour::White;
     let moves: Vec<Move> = board
         .as_iter()
-        .filter_map(|(p, row, col)| p.filter(|p| p.colour == colour).map(|_| (row, col)))
+        .filter_map(|(p, row, col)| {
+            if p.is_some_and(|p| p.colour == colour) {
+                Some((row, col))
+            } else {
+                None
+            }
+        })
         .flat_map(|(row, col)| board.get_moves(row, col))
         .collect();
 
@@ -110,9 +117,10 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
     }
 
     moves.into_iter().max_by_key(|&mv| {
-        let mut copy = board.clone();
-        make_move(mv, &mut copy, false);
-        let score = minimax(board, 3, Score::MIN + 1, Score::MAX - 1, maximizing);
+        let mut copy = board.hashless_clone();
+        copy.raw_move(mv);
+        copy.switch_turn();
+        let score = minimax(&copy, 3, Score::MIN + 1, Score::MAX - 1, !maximizing);
         if maximizing { score } else { -score }
     })
 }
