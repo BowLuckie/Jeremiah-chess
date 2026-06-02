@@ -71,13 +71,12 @@ fn with_board<T>(board: &Arc<Mutex<Board>>, f: impl FnOnce(&mut Board) -> T) -> 
 fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
     println!();
     with_board(board, |b| println!("{b}"));
-
-    // let ai_thinking: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let ai_thinking: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
     loop {
         if let Some(mv) = input.lock().unwrap().take_pending() {
             with_board(board, |b| {
-                make_move(mv, b, AI_ON);
+                make_move(mv, b, false); // handle AI separately
             });
         }
 
@@ -91,26 +90,39 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
                 });
                 b.promotion_state = PromotionState::Not;
                 post_move(b);
-                // trigger AI after white promotes
-                if AI_ON
-                    && b.to_move == Colour::Black
-                    && matches!(b.gamestate, GameState::Playing)
-                    && let Some(ai_move) = find_best(b, Black)
-                {
-                    make_move(ai_move, b, false);
-                    if let PromotionState::Promoting(mv, colour) = b.promotion_state {
-                        let (row, col) = mv.to;
-                        b.squares[row as usize][col as usize] = Some(Piece {
-                            kind: PieceKind::Queen,
-                            colour,
-                            has_moved: true,
-                        });
-                        b.promotion_state = PromotionState::Not;
-                        post_move(b);
-                    }
-                }
             }
         });
+
+        // AI check is outside with_board
+        let should_think = with_board(board, |b| {
+            AI_ON && b.to_move == Colour::Black && matches!(b.gamestate, GameState::Playing)
+        });
+
+        if should_think && !ai_thinking.load(Ordering::SeqCst) {
+            ai_thinking.store(true, Ordering::SeqCst);
+            let board_snapshot = with_board(board, |b| b.hashless_clone());
+            let board_clone = Arc::clone(board);
+            let thinking_flag = Arc::clone(&ai_thinking);
+            thread::spawn(move || {
+                if let Some(ai_move) = find_best(&board_snapshot, Black) {
+                    with_board(&board_clone, |b| {
+                        make_move(ai_move, b, false);
+                        if let PromotionState::Promoting(mv, colour) = b.promotion_state {
+                            let (row, col) = mv.to;
+                            b.squares[row as usize][col as usize] = Some(Piece {
+                                kind: PieceKind::Queen,
+                                colour,
+                                has_moved: true,
+                            });
+                            b.promotion_state = PromotionState::Not;
+                            post_move(b);
+                        }
+                    });
+                }
+                thinking_flag.store(false, Ordering::SeqCst);
+            });
+        }
+
         thread::sleep(Duration::from_millis(16));
     }
 }
