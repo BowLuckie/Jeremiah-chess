@@ -230,9 +230,8 @@ fn post_move(b: &mut Board) {
     }
 
     println!(
-        "hash: {} eval: {} score: {}",
+        "hash: {}\neval: {}",
         &b.position_hash(),
         evaluate(&b.clone()),
-        "todo"
     );
 }
