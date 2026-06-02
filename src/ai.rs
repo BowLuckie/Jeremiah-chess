@@ -22,11 +22,36 @@ fn p_score(piece: Piece) -> Score {
     })
 }
 
+fn mobility_bonus(board: &Board, row: i8, col: i8, piece: Piece) -> Score {
+    let moves = board.get_moves_unchecked(row, col, true).len() as i32;
+    moves
+        * match piece.kind {
+            PieceKind::Knight => 4,
+            PieceKind::Bishop => 3,
+            PieceKind::Rook => 2,
+            PieceKind::Queen => 1,
+            _ => 0,
+        }
+}
+
 pub fn evaluate(board: &Board) -> Score {
-    board
+    //materialScore = kingWt  * (wK-bK)
+    //               + queenWt * (wQ-bQ)
+    //               + rookWt  * (wR-bR)
+    //               + knightWt* (wN-bN)
+    //               + bishopWt* (wB-bB)
+    //               + pawnWt  * (wP-bP)
+    //
+    // mobilityScore = mobilityWt * (wMobility-bMobility)
+    // Eval  = (materialScore + mobilityScore) * who2Move
+    let score = board
         .as_iter()
-        .filter_map(|(p, _, _)| p)
-        .fold(0, |acc, p| acc + p_score(p))
+        .filter_map(|(p, row, col)| p.map(|p| (p, row, col)))
+        .fold(0, |acc, (p, row, col)| {
+            acc + p_score(p) + mobility_bonus(board, row, col, p)
+        });
+
+    return score;
 }
 
 pub fn minimax(

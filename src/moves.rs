@@ -96,6 +96,7 @@ impl Move {
 }
 
 impl Board {
+    /// very slow for ui and explicit move checking
     pub fn get_moves(&self, row: i8, col: i8, ai_source: bool) -> Vec<Move> {
         if !ai_source && self.get_piece(row, col).is_some_and(|p| p.colour == Black) {
             return vec![];
@@ -109,6 +110,7 @@ impl Board {
             .collect()
     }
 
+    /// faster since it does not check the moves and just returns the raw psuedo-legals
     pub fn get_moves_unchecked(&self, row: i8, col: i8, simulate: bool) -> Vec<Move> {
         match self.get_piece(row, col) {
             Some(p) => self.dispatch(*p, row, col, simulate),
