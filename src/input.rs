@@ -7,7 +7,7 @@ use crate::{
         Board,
         PromotionState::{Complete, Promoting},
     },
-    moves::{Coordinate, Move, promotion_click},
+    moves::{Coordinate, Move, in_bounds_point, promotion_click},
     window::TILE_SIZE,
 };
 
@@ -52,6 +52,10 @@ pub fn handle_click(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>, r
     let col = (rl.get_mouse_x() / TILE_SIZE) as i8;
     let row = (rl.get_mouse_y() / TILE_SIZE) as i8;
     let new = (row, col);
+
+    if !in_bounds_point(new) {
+        return;
+    }
 
     let input_state = input.lock().unwrap();
     let selected_old = input_state.selected;

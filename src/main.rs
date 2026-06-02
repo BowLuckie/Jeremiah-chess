@@ -9,7 +9,7 @@
 #![allow(clippy::enum_glob_use)]
 
 use crate::{
-    ai::find_best,
+    ai::{evaluate, find_best},
     board::{
         GameState,
         PromotionState::{self, Complete},
@@ -187,7 +187,7 @@ pub fn make_move(mv: Move, b: &mut Board, ai_opponent: bool, ai_source: bool) {
 
     if piece.is_some_and(|p| p.kind == Pawn)
         && b.get_piece(mv.to.0 - dir, mv.to.1)
-            .is_some_and(|p| p.kind == Pawn)
+            .is_some_and(|p| p.kind == Pawn && p.colour != piece.unwrap().colour)
     {
         b.squares[(mv.to.0 - dir) as usize][mv.to.1 as usize] = None;
         b.loaded_sound = LoadedSound::Capture;
@@ -228,5 +228,11 @@ fn post_move(b: &mut Board) {
     } else if b.king_in_check(b.to_move) {
         b.loaded_sound = LoadedSound::Check;
     }
-    println!("hash: {} count: {}", hash, b.position_history[&hash]);
+
+    println!(
+        "hash: {} eval: {} score: {}",
+        &b.position_hash(),
+        evaluate(&b.clone()),
+        "todo"
+    );
 }

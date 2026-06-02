@@ -38,11 +38,11 @@ pub struct Move {
     pub to: Coordinate,
 }
 
-fn in_bounds(r: i8, c: i8) -> bool {
+pub fn in_bounds(r: i8, c: i8) -> bool {
     (0..8).contains(&r) && (0..8).contains(&c)
 }
 
-fn in_bounds_point(point: Coordinate) -> bool {
+pub fn in_bounds_point(point: Coordinate) -> bool {
     (0..8).contains(&point.0) && (0..8).contains(&point.1)
 }
 
