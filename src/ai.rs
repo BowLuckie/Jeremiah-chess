@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    ai::GamePhase::Late,
     board::{Board, PositionHash},
     moves::{
         Colour::{self, Black, White},
@@ -8,6 +9,8 @@ use crate::{
         PieceKind::{self, Pawn},
     },
 };
+
+pub type Score = i32;
 
 // ---- PST ----
 
@@ -55,10 +58,28 @@ pub const QUEEN_PST: [[i32; 8]; 8] = [
     [-5, -5, -5, -5, -5, -5, -5, -5],
 ];
 
-fn pst_bonus(piece: Piece, row: i8, col: i8) -> i32 {
+pub const KING_PST: [[i32; 8]; 8] = [
+    [-50, -30, -30, -30, -30, -30, -30, -50],
+    [-30, -30, 0, 0, 0, 0, -30, -30],
+    [-30, -10, 20, 30, 30, 20, -10, -30],
+    [-30, -10, 30, 40, 40, 30, -10, -30],
+    [-30, -10, 30, 40, 40, 30, -10, -30],
+    [-30, -10, 20, 30, 30, 20, -10, -30],
+    [-30, -20, -10, 0, 0, -10, -20, -30],
+    [-50, -40, -30, -20, -20, -30, -40, -50],
+];
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum GamePhase {
+    Early,
+    Mid,
+    Late,
+}
+
+fn pst_bonus(piece: Piece, row: i8, col: i8, phase: GamePhase) -> i32 {
     let row = match piece.colour {
         White => row,
-        Black => 7 - row, // mirror for black
+        Black => 7 - row,
     };
 
     let (row, col) = (row as usize, col as usize);
@@ -68,6 +89,7 @@ fn pst_bonus(piece: Piece, row: i8, col: i8) -> i32 {
         PieceKind::Bishop => BISHOP_PST[row][col],
         PieceKind::Rook => ROOK_PST[row][col],
         PieceKind::Queen => QUEEN_PST[row][col],
+        PieceKind::King if phase == Late => KING_PST[row][col],
         _ => 0,
     }) * (match piece.colour {
         White => 1,
@@ -75,7 +97,10 @@ fn pst_bonus(piece: Piece, row: i8, col: i8) -> i32 {
     })
 }
 
-pub type Score = i32;
+pub fn get_game_phase(board: &Board) -> GamePhase {
+    use GamePhase::*;
+    Early
+}
 
 fn pawn_bonus(piece: Piece, row: i8) -> Score {
     if piece.kind != Pawn {
@@ -125,14 +150,18 @@ fn mobility_bonus(board: &Board, row: i8, col: i8, piece: Piece) -> Score {
     }
 }
 
-pub fn evaluate(board: &Board, position_history: &HashMap<PositionHash, u8>) -> Score {
+pub fn evaluate(
+    board: &Board,
+    position_history: &HashMap<PositionHash, u8>,
+    phase: GamePhase,
+) -> Score {
     let mut score = board
         .as_iter()
         .filter_map(|(p, row, col)| p.map(|piece| (piece, row, col)))
         .fold(0, |acc, (piece, row, col)| {
             acc + p_score(piece)
                 + mobility_bonus(board, row, col, piece)
-                + pst_bonus(piece, row, col)
+                + pst_bonus(piece, row, col, phase)
                 + pawn_bonus(piece, row)
         });
 
@@ -144,15 +173,16 @@ pub fn evaluate(board: &Board, position_history: &HashMap<PositionHash, u8>) -> 
     return score;
 }
 
-pub fn minimax(
+fn minimax(
     board: &Board,
     depth: u8,
     mut alpha: Score,
     mut beta: Score,
     maximizing: bool,
+    phase: &GamePhase,
 ) -> Score {
     if depth == 0 {
-        return evaluate(board, &board.position_history);
+        return evaluate(board, &board.position_history, *phase);
     }
 
     let colour = if maximizing {
@@ -190,7 +220,7 @@ pub fn minimax(
             let mut copy = board.clone();
             copy.raw_move(mv);
             copy.switch_turn();
-            best = best.max(minimax(&copy, depth - 1, alpha, beta, false));
+            best = best.max(minimax(&copy, depth - 1, alpha, beta, false, phase));
             alpha = alpha.max(best);
             if beta <= alpha {
                 break;
@@ -203,7 +233,7 @@ pub fn minimax(
             let mut copy = board.hashless_clone();
             copy.raw_move(mv);
             copy.switch_turn();
-            best = best.min(minimax(&copy, depth - 1, alpha, beta, true));
+            best = best.min(minimax(&copy, depth - 1, alpha, beta, true, phase));
             beta = beta.min(best);
             if beta <= alpha {
                 break;
@@ -215,6 +245,7 @@ pub fn minimax(
 
 pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
     let maximizing = colour == Colour::White;
+    let phase = get_game_phase(board);
     let moves: Vec<Move> = board
         .as_iter()
         .filter_map(|(p, row, col)| {
@@ -235,7 +266,14 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
         let mut copy = board.hashless_clone();
         copy.raw_move(mv);
         copy.switch_turn();
-        let score = minimax(&copy, 3, Score::MIN + 1, Score::MAX - 1, !maximizing); // GREPME2
+        let score = minimax(
+            &copy,
+            3,
+            Score::MIN + 1,
+            Score::MAX - 1,
+            !maximizing,
+            &phase,
+        ); // GREPME2
         if maximizing { score } else { -score }
     })
 }

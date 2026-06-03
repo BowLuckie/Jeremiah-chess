@@ -106,3 +106,9 @@ pub fn click_control(
     }
     ControlFlow::Continue(())
 }
+
+pub fn clear_selection(input: &Arc<Mutex<InputState>>) {
+    let mut inp = input.lock().unwrap();
+    inp.selected = None;
+    inp.legal_moves.clear();
+}

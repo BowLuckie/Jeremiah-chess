@@ -9,7 +9,7 @@
 #![allow(clippy::enum_glob_use)]
 
 use crate::{
-    ai::{evaluate, find_best},
+    ai::{evaluate, find_best, get_game_phase},
     board::{
         GameState,
         PromotionState::{self, Complete},
@@ -118,8 +118,13 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
                             post_move(b);
                         }
                     });
-                    #[allow(unused)]
-                    input::click_control(&board_clone, &input_clone, ai_move.to.0, ai_move.to.1);
+                    input::clear_selection(&input_clone);
+                    let _ = input::click_control(
+                        &board_clone,
+                        &input_clone,
+                        ai_move.to.1,
+                        ai_move.to.0,
+                    );
                 }
                 thinking_flag.store(false, Ordering::SeqCst);
             });
@@ -232,5 +237,8 @@ fn post_move(b: &mut Board) {
         b.loaded_sound = LoadedSound::Check;
     }
 
-    println!("evaluation: {}", evaluate(b, &b.position_history));
+    println!(
+        "evaluation: {}",
+        evaluate(b, &b.position_history, get_game_phase(b)),
+    );
 }
