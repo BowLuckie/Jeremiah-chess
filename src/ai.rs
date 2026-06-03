@@ -111,7 +111,7 @@ pub fn get_game_phase(board: &Board) -> GamePhase {
                 _ => (maj, paw),
             });
 
-    if major_pieces >= 6 && pawns >= 12 {
+    if major_pieces >= 6 && pawns >= 10 {
         Early
     } else if major_pieces <= 2 {
         Late
@@ -236,8 +236,7 @@ fn minimax(
         let mut best = Score::MIN + 1;
         for mv in moves {
             let mut copy = board.clone();
-            copy.raw_move(mv);
-            copy.switch_turn();
+            apply_move(&mut copy, mv);
             best = best.max(minimax(&copy, depth - 1, alpha, beta, false, phase));
             alpha = alpha.max(best);
             if beta <= alpha {
@@ -249,8 +248,7 @@ fn minimax(
         let mut best = Score::MAX - 1;
         for mv in moves {
             let mut copy = board.hashless_clone();
-            copy.raw_move(mv);
-            copy.switch_turn();
+            apply_move(&mut copy, mv);
             best = best.min(minimax(&copy, depth - 1, alpha, beta, true, phase));
             beta = beta.min(best);
             if beta <= alpha {
@@ -287,8 +285,7 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
 
     moves.into_iter().max_by_key(|&mv| {
         let mut copy = board.hashless_clone();
-        copy.raw_move(mv);
-        copy.switch_turn();
+        apply_move(&mut copy, mv);
         let score = minimax(
             &copy,
             depth,
@@ -296,7 +293,23 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
             Score::MAX - 1,
             !maximizing,
             &phase,
-        ); // GREPME2
+        );
         if maximizing { score } else { -score }
     })
+}
+
+fn apply_move(board: &mut Board, mv: Move) {
+    board.raw_move(mv);
+    let piece = board.get_piece(mv.to.0, mv.to.1).copied();
+    if let Some(p) = piece
+        && p.kind == PieceKind::Pawn
+        && [0, 7].contains(&mv.to.0)
+    {
+        board.squares[mv.to.0 as usize][mv.to.1 as usize] = Some(Piece {
+            kind: PieceKind::Queen,
+            colour: p.colour,
+            has_moved: true,
+        });
+    }
+    board.switch_turn();
 }
