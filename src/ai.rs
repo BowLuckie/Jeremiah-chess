@@ -99,7 +99,25 @@ fn pst_bonus(piece: Piece, row: i8, col: i8, phase: GamePhase) -> i32 {
 
 pub fn get_game_phase(board: &Board) -> GamePhase {
     use GamePhase::*;
-    Early
+    use PieceKind::*;
+
+    let (major_pieces, pawns) =
+        board
+            .as_iter()
+            .filter_map(|(p, _, _)| p)
+            .fold((0, 0), |(maj, paw), p| match p.kind {
+                Queen | Rook => (maj + 1, paw),
+                Pawn => (maj, paw + 1),
+                _ => (maj, paw),
+            });
+
+    if major_pieces >= 6 && pawns >= 12 {
+        Early
+    } else if major_pieces <= 2 {
+        Late
+    } else {
+        Mid
+    }
 }
 
 fn pawn_bonus(piece: Piece, row: i8) -> Score {
@@ -262,13 +280,18 @@ pub fn find_best(board: &Board, colour: Colour) -> Option<Move> {
         return None;
     }
 
+    let mut depth = 3;
+    if phase == Late {
+        depth = 4
+    };
+
     moves.into_iter().max_by_key(|&mv| {
         let mut copy = board.hashless_clone();
         copy.raw_move(mv);
         copy.switch_turn();
         let score = minimax(
             &copy,
-            3,
+            depth,
             Score::MIN + 1,
             Score::MAX - 1,
             !maximizing,

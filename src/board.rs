@@ -73,7 +73,7 @@ impl Iterator for SquareIter<'_> {
 }
 
 pub fn reset(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
-    *board.lock().unwrap() = Board::new(); // GREPME
+    *board.lock().unwrap() = Board::test_board(); // GREPME
     board.lock().unwrap().loaded_sound = LoadedSound::Start;
     *input.lock().unwrap() = InputState::new();
 }
@@ -194,8 +194,7 @@ impl Board {
         place(&mut squares, 0, 5, King, Black);
         place(&mut squares, 7, 4, King, White);
 
-        place(&mut squares, 1, 3, Pawn, White);
-        place(&mut squares, 1, 2, Rook, White);
+        place(&mut squares, 1, 2, Rook, Black);
 
         Self {
             squares,
