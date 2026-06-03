@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    ops::ControlFlow,
+    sync::{Arc, Mutex},
+};
 
 use raylib::RaylibHandle;
 
@@ -51,23 +54,31 @@ impl InputState {
 pub fn handle_click(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>, rl: &RaylibHandle) {
     let col = (rl.get_mouse_x() / TILE_SIZE) as i8;
     let row = (rl.get_mouse_y() / TILE_SIZE) as i8;
-    let new = (row, col);
-
-    if !in_bounds_point(new) {
+    if let ControlFlow::Break(_) = click_control(board, input, col, row) {
         return;
     }
+}
 
+pub fn click_control(
+    board: &Arc<Mutex<Board>>,
+    input: &Arc<Mutex<InputState>>,
+    col: i8,
+    row: i8,
+) -> ControlFlow<()> {
+    let new = (row, col);
+    if !in_bounds_point(new) {
+        return ControlFlow::Break(());
+    }
     let input_state = input.lock().unwrap();
     let selected_old = input_state.selected;
     drop(input_state);
-
     let (legal_moves, pending) = {
         let mut board_guard = board.lock().unwrap();
         if let Promoting(mv, colour) = board_guard.promotion_state
             && let Some(p) = promotion_click(new, board_guard.promotion_state)
         {
             board_guard.promotion_state = Complete(mv.to, p, colour);
-            return;
+            return ControlFlow::Break(());
         }
         match selected_old {
             Some(old) if old == new => (vec![], None),
@@ -78,8 +89,8 @@ pub fn handle_click(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>, r
             None => (board_guard.get_moves(row, col, false), None),
         }
     };
-
     let mut input_state = input.lock().unwrap();
+
     match selected_old {
         Some(old) if old == new => {
             input_state.selected = None;
@@ -93,4 +104,5 @@ pub fn handle_click(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>, r
             }
         }
     }
+    ControlFlow::Continue(())
 }

@@ -101,6 +101,7 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
             ai_thinking.store(true, Ordering::SeqCst);
             let board_snapshot = with_board(board, |b| b.hashless_clone());
             let board_clone = Arc::clone(board);
+            let input_clone = Arc::clone(input);
             let thinking_flag = Arc::clone(&ai_thinking);
             thread::spawn(move || {
                 if let Some(ai_move) = find_best(&board_snapshot, Black) {
@@ -117,6 +118,8 @@ fn logic(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
                             post_move(b);
                         }
                     });
+                    #[allow(unused)]
+                    input::click_control(&board_clone, &input_clone, ai_move.to.0, ai_move.to.1);
                 }
                 thinking_flag.store(false, Ordering::SeqCst);
             });
@@ -229,9 +232,5 @@ fn post_move(b: &mut Board) {
         b.loaded_sound = LoadedSound::Check;
     }
 
-    println!(
-        "hash: {}\neval: {}",
-        &b.position_hash(),
-        evaluate(&b.clone()),
-    );
+    println!("evaluation: {}", evaluate(b, &b.position_history));
 }

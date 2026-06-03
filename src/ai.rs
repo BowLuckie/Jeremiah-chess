@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{
-    board::Board,
+    board::{Board, PositionHash},
     moves::{
         Colour::{self, Black, White},
-        Move, Piece, PieceKind,
+        Move, Piece,
+        PieceKind::{self, Pawn},
     },
 };
 
@@ -74,6 +77,22 @@ fn pst_bonus(piece: Piece, row: i8, col: i8) -> i32 {
 
 pub type Score = i32;
 
+fn pawn_bonus(piece: Piece, row: i8) -> Score {
+    if piece.kind != Pawn {
+        return 0;
+    }
+
+    let advancement = match piece.colour {
+        White => 7 - row,
+        Black => row,
+    };
+    let bonus = advancement * 10;
+    (match piece.colour {
+        White => bonus,
+        Black => -bonus,
+    }) as i32
+}
+
 fn p_score(piece: Piece) -> Score {
     (match piece.kind {
         PieceKind::Pawn => 100,
@@ -106,13 +125,21 @@ fn mobility_bonus(board: &Board, row: i8, col: i8, piece: Piece) -> Score {
     }
 }
 
-pub fn evaluate(board: &Board) -> Score {
-    let score = board
+pub fn evaluate(board: &Board, position_history: &HashMap<PositionHash, u8>) -> Score {
+    let mut score = board
         .as_iter()
-        .filter_map(|(p, row, col)| p.map(|p| (p, row, col)))
-        .fold(0, |acc, (p, row, col)| {
-            acc + p_score(p) + mobility_bonus(board, row, col, p) + pst_bonus(p, row, col)
+        .filter_map(|(p, row, col)| p.map(|piece| (piece, row, col)))
+        .fold(0, |acc, (piece, row, col)| {
+            acc + p_score(piece)
+                + mobility_bonus(board, row, col, piece)
+                + pst_bonus(piece, row, col)
+                + pawn_bonus(piece, row)
         });
+
+    let hash = board.position_hash();
+    if let Some(&count) = position_history.get(&hash) {
+        score -= count as Score * 50;
+    }
 
     return score;
 }
@@ -125,7 +152,7 @@ pub fn minimax(
     maximizing: bool,
 ) -> Score {
     if depth == 0 {
-        return evaluate(board);
+        return evaluate(board, &board.position_history);
     }
 
     let colour = if maximizing {
@@ -173,7 +200,7 @@ pub fn minimax(
     } else {
         let mut best = Score::MAX - 1;
         for mv in moves {
-            let mut copy = board.clone();
+            let mut copy = board.hashless_clone();
             copy.raw_move(mv);
             copy.switch_turn();
             best = best.min(minimax(&copy, depth - 1, alpha, beta, true));
