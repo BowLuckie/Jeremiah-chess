@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use crate::{
     ai::GamePhase::Late,
-    board::{Board, PositionHash},
+    board::Board,
     moves::{
         Colour::{self, Black, White},
         Move, Piece,
@@ -120,6 +118,25 @@ pub fn get_game_phase(board: &Board) -> GamePhase {
     }
 }
 
+fn mop_up_bonus(board: &Board, colour: Colour, phase: GamePhase) -> Score {
+    if phase != GamePhase::Late {
+        return 0;
+    }
+    let opponent = !colour;
+    let opponent_moves = board
+        .as_iter()
+        .filter_map(|(p, row, col)| {
+            if p.is_some_and(|p| p.colour == opponent) {
+                Some((row, col))
+            } else {
+                None
+            }
+        })
+        .flat_map(|(row, col)| board.get_moves_unchecked(row, col, true))
+        .count() as Score;
+    -opponent_moves * 5
+}
+
 fn pawn_bonus(piece: Piece, row: i8) -> Score {
     if piece.kind != Pawn {
         return 0;
@@ -168,12 +185,8 @@ fn mobility_bonus(board: &Board, row: i8, col: i8, piece: Piece) -> Score {
     }
 }
 
-pub fn evaluate(
-    board: &Board,
-    position_history: &HashMap<PositionHash, u8>,
-    phase: GamePhase,
-) -> Score {
-    let mut score = board
+pub fn evaluate(board: &Board, phase: GamePhase) -> Score {
+    board
         .as_iter()
         .filter_map(|(p, row, col)| p.map(|piece| (piece, row, col)))
         .fold(0, |acc, (piece, row, col)| {
@@ -181,14 +194,8 @@ pub fn evaluate(
                 + mobility_bonus(board, row, col, piece)
                 + pst_bonus(piece, row, col, phase)
                 + pawn_bonus(piece, row)
-        });
-
-    let hash = board.position_hash();
-    if let Some(&count) = position_history.get(&hash) {
-        score -= count as Score * 50;
-    }
-
-    return score;
+                + mop_up_bonus(board, piece.colour, phase)
+        })
 }
 
 fn minimax(
@@ -200,7 +207,7 @@ fn minimax(
     phase: &GamePhase,
 ) -> Score {
     if depth == 0 {
-        return evaluate(board, &board.position_history, *phase);
+        return evaluate(board, *phase);
     }
 
     let colour = if maximizing {
@@ -235,7 +242,7 @@ fn minimax(
     if maximizing {
         let mut best = Score::MIN + 1;
         for mv in moves {
-            let mut copy = board.clone();
+            let mut copy = board.hashless_clone();
             apply_move(&mut copy, mv);
             best = best.max(minimax(&copy, depth - 1, alpha, beta, false, phase));
             alpha = alpha.max(best);

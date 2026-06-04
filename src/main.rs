@@ -239,7 +239,7 @@ fn post_move(b: &mut Board) {
 
     println!(
         "evaluation: {} {:?}",
-        evaluate(b, &b.position_history, get_game_phase(b)),
+        evaluate(b, get_game_phase(b)),
         get_game_phase(b),
     );
 }
