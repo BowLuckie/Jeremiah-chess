@@ -73,7 +73,7 @@ impl Iterator for SquareIter<'_> {
 }
 
 pub fn reset(board: &Arc<Mutex<Board>>, input: &Arc<Mutex<InputState>>) {
-    *board.lock().unwrap() = Board::test_board(); // starting board
+    *board.lock().unwrap() = Board::new(); // starting board
     board.lock().unwrap().loaded_sound = LoadedSound::Start;
     *input.lock().unwrap() = InputState::new();
 }
